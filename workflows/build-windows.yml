@@ -1,0 +1,44 @@
+name: Build Windows EXE RC 5.3.1
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build local Python gateway
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
+          python -m PyInstaller --clean --noconfirm --onefile --name studio-gateway --distpath app/dist app/serve.py
+          if (!(Test-Path 'app/dist/studio-gateway.exe')) { throw 'Gateway EXE was not produced' }
+      - name: Verify gateway before packaging
+        run: node scripts/verify-gateway.cjs
+      - name: Install Electron dependencies
+        run: npm install
+      - name: Build Windows installer
+        run: npm run dist:win
+      - name: Verify packaged gateway exists
+        shell: pwsh
+        run: |
+          $gateway = 'dist/win-unpacked/resources/studio-gateway.exe'
+          if (!(Test-Path $gateway)) { throw "Packaged gateway missing: $gateway" }
+          $bytes = (Get-Item $gateway).Length
+          if ($bytes -lt 100000) { throw "Packaged gateway too small: $bytes" }
+          Write-Host "Packaged gateway verified ($bytes bytes)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 3D-Studio-5.3.1-Windows-RC-installer
+          path: dist/*Setup*.exe
+          if-no-files-found: error
