@@ -1,0 +1,45 @@
+{
+  "name": "3d-studio",
+  "version": "0.2.0-alpha",
+  "private": true,
+  "description": "3D Studio - experimental Windows desktop release",
+  "main": "main.cjs",
+  "scripts": {
+    "postinstall": "node copy-vendor.cjs",
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis portable --x64"
+  },
+  "dependencies": {
+    "three": "0.161.0"
+  },
+  "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "org.threedstudio.editor",
+    "productName": "3D Studio",
+    "asar": true,
+    "files": [
+      "main.cjs",
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "artifactName": "3D-Studio-${version}-${arch}-${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
