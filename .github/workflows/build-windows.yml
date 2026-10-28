@@ -34,7 +34,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: 3D-Studio-Windows-EXE
-          path: |
-            dist/**/*.exe
-            dist/*.exe
+          path: dist/*.exe
           if-no-files-found: error
+
