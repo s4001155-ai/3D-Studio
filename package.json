@@ -1,35 +1,39 @@
 {
-  "name": "3d-studio",
-  "version": "0.4.0-alpha",
+  "name": "3d-studio-windows-rc",
+  "version": "5.3.0-rc.1",
   "private": true,
-  "description": "3D Studio alpha: integrated Quick Tools, Special Tools, interactive beginner guide and compact context menu",
+  "description": "3D Studio experimental Windows desktop build",
   "main": "main.cjs",
   "scripts": {
-    "postinstall": "node copy-vendor.cjs",
     "start": "electron .",
-    "dist:win": "electron-builder --win --x64 --publish never",
-    "dist:mac": "electron-builder --mac dmg zip --publish never"
-  },
-  "dependencies": {
-    "three": "0.161.0"
+    "dist:win": "electron-builder --win nsis --x64"
   },
   "devDependencies": {
-    "electron": "33.4.11",
-    "electron-builder": "25.1.8"
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "org.threedstudio.editor",
+    "appId": "com.studio3d.desktop",
     "productName": "3D Studio",
-    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
     "files": [
       "main.cjs",
-      "src/**/*",
-      "package.json"
+      "package.json",
+      "app/index.html",
+      "preload.cjs"
     ],
-    "directories": {
-      "output": "dist",
-      "buildResources": "build"
-    },
+    "extraResources": [
+      {
+        "from": "app/dist/studio-gateway.exe",
+        "to": "studio-gateway.exe"
+      },
+      {
+        "from": "app/index.html",
+        "to": "web/index.html"
+      }
+    ],
     "win": {
       "target": [
         {
@@ -37,38 +41,15 @@
           "arch": [
             "x64"
           ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
         }
-      ],
-      "icon": "build/icon.ico"
+      ]
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": "always",
+      "perMachine": false,
+      "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "artifactName": "3D-Studio-Setup-${version}-${arch}.${ext}",
       "shortcutName": "3D Studio"
-    },
-    "portable": {
-      "artifactName": "3D-Studio-Portable-${version}-${arch}.${ext}"
-    },
-    "mac": {
-      "category": "public.app-category.graphics-design",
-      "icon": "build/icon.png",
-      "target": [
-        "dmg",
-        "zip"
-      ],
-      "artifactName": "3D-Studio-${version}-macOS-${arch}.${ext}",
-      "identity": null,
-      "hardenedRuntime": false
     }
-  },
-  "author": "3D Studio Contributors"
+  }
 }
