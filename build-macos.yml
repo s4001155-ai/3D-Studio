@@ -1,0 +1,54 @@
+name: Build macOS App
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos:
+    name: macOS ${{ matrix.arch }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x64]
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies and local 3D assets
+        run: npm install
+
+      - name: Check bundled Three.js files
+        run: |
+          test -f src/vendor/three.module.js
+          test -d src/vendor/addons
+
+      - name: Build unsigned macOS app
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          CSC_LINK: ''
+        run: npx electron-builder --mac dmg zip --${{ matrix.arch }} --publish never
+
+      - name: Verify outputs
+        run: |
+          find dist -maxdepth 1 -type f -print
+          test -n "$(find dist -maxdepth 1 -type f -name '*.dmg' -print -quit)"
+          test -n "$(find dist -maxdepth 1 -type f -name '*.zip' -print -quit)"
+
+      - name: Upload macOS installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3D-Studio-macOS-${{ matrix.arch }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error
+          retention-days: 30
