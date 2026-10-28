@@ -1,8 +1,8 @@
 {
   "name": "3d-studio",
-  "version": "0.2.0-alpha",
+  "version": "0.3.0-alpha",
   "private": true,
-  "description": "3D Studio - experimental Windows desktop release",
+  "description": "3D Studio Windows desktop alpha with experimental Special and Pro Tools",
   "main": "main.cjs",
   "scripts": {
     "postinstall": "node copy-vendor.cjs",
