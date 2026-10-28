@@ -6,7 +6,11 @@ const fs = require('fs');
 let backend, win, startupTimeout;
 let token = '';
 function gatewayPath(){
-  return app.isPackaged ? path.join(process.resourcesPath,'studio-gateway.exe') : path.join(__dirname,'app','dist','studio-gateway.exe');
+  const candidates=app.isPackaged
+    ? [path.join(process.resourcesPath,'studio-gateway.exe'),
+       path.join(process.resourcesPath,'app','dist','studio-gateway.exe')]
+    : [path.join(__dirname,'app','dist','studio-gateway.exe')];
+  return candidates.find(p=>fs.existsSync(p)) || candidates[0];
 }
 function createLoginWindow(){
   const w = new BrowserWindow({width:500,height:340,resizable:false,autoHideMenuBar:true,webPreferences:{nodeIntegration:false,contextIsolation:true,preload:path.join(__dirname,'preload.cjs')}});
@@ -19,7 +23,7 @@ function launchGateway(value){
   token = typeof value === 'string' ? value.trim() : '';
   const exe=gatewayPath();
   if(!fs.existsSync(exe)){
-    dialog.showErrorBox('Не найден сервер','Отсутствует studio-gateway.exe. Соберите приложение через GitHub Actions.');
+    dialog.showErrorBox('Не найден сервер','Отсутствует studio-gateway.exe в папке ресурсов. Этот установщик собран неправильно. Установите новую сборку 5.3.1 RC.');
     app.quit();return;
   }
   const env={...process.env,THINGIVERSE_TOKEN:token,STUDIO_WEB_ROOT:app.isPackaged?path.join(process.resourcesPath,'web'):path.join(__dirname,'app')};

@@ -1,12 +1,13 @@
 {
   "name": "3d-studio-windows-rc",
-  "version": "5.3.0-rc.1",
+  "version": "5.3.1-rc.1",
   "private": true,
   "description": "3D Studio experimental Windows desktop build",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
-    "dist:win": "electron-builder --win nsis --x64"
+    "dist:win": "npm run verify:gateway && electron-builder --win nsis --x64",
+    "verify:gateway": "node scripts/verify-gateway.cjs"
   },
   "devDependencies": {
     "electron": "^33.4.11",
@@ -27,7 +28,10 @@
     "extraResources": [
       {
         "from": "app/dist/studio-gateway.exe",
-        "to": "studio-gateway.exe"
+        "to": "studio-gateway.exe",
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "app/index.html",
