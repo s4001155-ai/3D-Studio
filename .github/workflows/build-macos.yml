@@ -8,14 +8,11 @@ permissions:
 
 jobs:
   build-macos:
-    name: macOS ${{ matrix.arch }}
-    runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [arm64, x64]
+    name: Build macOS (Intel + Apple Silicon)
+    runs-on: macos-15
+    timeout-minutes: 60
     steps:
-      - name: Checkout project
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Node.js
@@ -23,30 +20,33 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies and local 3D assets
+      - name: Install dependencies
         run: npm install
 
-      - name: Check bundled Three.js files
+      - name: Check 3D assets
         run: |
           test -f src/vendor/three.module.js
           test -d src/vendor/addons
 
-      - name: Build unsigned macOS app
+      - name: Build unsigned Intel and Apple Silicon packages
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           CSC_LINK: ''
-        run: npx electron-builder --mac dmg zip --${{ matrix.arch }} --publish never
+        run: npx electron-builder --mac dmg zip --x64 --arm64 --publish never
 
-      - name: Verify outputs
+      - name: Check both architectures
+        shell: bash
         run: |
-          find dist -maxdepth 1 -type f -print
-          test -n "$(find dist -maxdepth 1 -type f -name '*.dmg' -print -quit)"
-          test -n "$(find dist -maxdepth 1 -type f -name '*.zip' -print -quit)"
+          ls -lah dist
+          for arch in x64 arm64; do
+            find dist -maxdepth 1 -type f -name "*${arch}*.dmg" | grep -q . || { echo "Missing ${arch} DMG"; exit 1; }
+            find dist -maxdepth 1 -type f -name "*${arch}*.zip" | grep -q . || { echo "Missing ${arch} ZIP"; exit 1; }
+          done
 
       - name: Upload macOS installers
         uses: actions/upload-artifact@v4
         with:
-          name: 3D-Studio-macOS-${{ matrix.arch }}
+          name: 3D-Studio-macOS-Intel-and-Apple-Silicon
           path: |
             dist/*.dmg
             dist/*.zip
