@@ -7,7 +7,7 @@
   "scripts": {
     "postinstall": "node copy-vendor.cjs",
     "start": "electron .",
-    "dist:win": "electron-builder --win --x64 --publish never"
+    "dist:win": "electron-builder --win nsis portable --x64 --publish never"
   },
   "dependencies": {
     "three": "0.161.0"
