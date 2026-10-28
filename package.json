@@ -7,7 +7,7 @@
   "scripts": {
     "postinstall": "node copy-vendor.cjs",
     "start": "electron .",
-    "dist:win": "electron-builder --win nsis portable --x64"
+    "dist:win": "electron-builder --win --x64 --publish never"
   },
   "dependencies": {
     "three": "0.161.0"
@@ -30,16 +30,30 @@
     },
     "win": {
       "target": [
-        "nsis",
-        "portable"
-      ],
-      "artifactName": "3D-Studio-${version}-${arch}-${ext}"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "artifactName": "3D-Studio-Setup-${version}-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "3D-Studio-Portable-${version}-${arch}.${ext}"
     }
-  }
+  },
+  "author": "3D Studio Contributors"
 }
