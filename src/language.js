@@ -11,6 +11,9 @@ let lang='en';
 try{lang=localStorage.getItem('3dstudio.ui.language')||'en'}catch{}
 if(!['ru','en','zh'].includes(lang))lang='en';
 choice.value=lang;
+const settingsChoice=document.getElementById('settingsLanguage');
+if(settingsChoice)settingsChoice.value=lang;
+
 const reverse=new Map();
 for(const [ru,translationsForKey] of Object.entries(translations)){
  reverse.set(ru,ru);
@@ -75,13 +78,22 @@ function walk(root){
 function update(){
  document.documentElement.lang=lang;
  walk(document.body);
+ const settingsLabel=document.getElementById('settingsLanguageLabel');
+ if(settingsLabel)settingsLabel.textContent=lang==='ru'?'Язык интерфейса':lang==='en'?'Interface language':'界面语言';
  const label=document.getElementById('languageLabel');
  if(label)label.textContent=lang==='ru'?'Язык':lang==='en'?'Language':'语言';
 }
+if(settingsChoice)settingsChoice.addEventListener('change',()=>{
+ choice.value=settingsChoice.value;
+ choice.dispatchEvent(new Event('change',{bubbles:true}));
+});
 choice.addEventListener('change',()=>{
  lang=choice.value;
+ if(settingsChoice)settingsChoice.value=lang;
  try{localStorage.setItem('3dstudio.ui.language',lang)}catch{}
  update();
+ // Update dynamic messages that are not ordinary static text nodes.
+ window.dispatchEvent(new Event('studio-language-changed'));
 });
 const observer=new MutationObserver(records=>{
  for(const record of records){
