@@ -1135,3 +1135,122 @@ if(rulerPanel){rulerPanel.style.position='static';rulerPanel.style.width='auto';
 buttons.appendChild(roundedPanel);
 
 window.addEventListener('studio-language-changed',()=>{checkBounds()});
+
+
+// Integrated tool UI. Main modeling scene remains active when panels are opened.
+const proTools = [
+ ['Shell','01-shell.html','Create a solid or hollow box. Hollow geometry is experimental; check STL in a slicer.'],
+ ['Smart Pattern','02-pattern.html','Select a mesh and create linear or circular copies. Copies are not automatically merged.'],
+ ['Face Sketch','03-face-sketch.html','Pick a flat face and add a rectangular boss. The boss is a separate object.'],
+ ['Smart Dimensions','04-smart-dimensions.html','Create a formula-driven box. This is not a full constraint solver.'],
+ ['Thread Generator','05-thread.html','Create a helical ridge. Thread geometry is not standardised for fitting.'],
+ ['Loft','06-loft.html','Create a transition between a rectangular and a circular profile.'],
+ ['Sweep','07-sweep.html','Create a tube along a predefined curved path.'],
+ ['Assembly Tools','08-assembly.html','Check bounding-box collisions and centre objects. Not a physical simulation.'],
+ ['Design History','10-history.html','Save and restore temporary scene snapshots. Not a parametric feature tree.']
+];
+const toolButtons=document.getElementById('proToolsButtons');
+const toolDock=document.getElementById('proToolDock');
+const toolFrame=document.getElementById('proToolFrame');
+const toolGuide=document.getElementById('toolGuideDialog');
+proTools.forEach(([title,file,guide])=>{
+ const button=document.createElement('button');button.textContent=title;button.type='button';
+ button.title='Left-click: open preview. Right-click: guide.';
+ button.addEventListener('click',()=>{
+  document.getElementById('proToolTitle').textContent=title+' — experimental preview';
+  toolFrame.src='./pro-tools/'+file;toolDock.hidden=false;
+ });
+ button.addEventListener('contextmenu',e=>{
+  e.preventDefault();document.getElementById('toolGuideTitle').textContent=title;
+  document.getElementById('toolGuideText').textContent=guide;
+  if(!toolGuide.open)toolGuide.showModal();
+ });
+ toolButtons.appendChild(button);
+});
+document.getElementById('closeProTool').addEventListener('click',()=>{toolDock.hidden=true;toolFrame.src='about:blank'});
+// Overlay is deliberately outside the editable root, so it never becomes part of STL exports.
+const supportOverlay=new THREE.Group();scene.add(supportOverlay);
+const supportMaterial=new THREE.MeshBasicMaterial({color:0xff3356,side:THREE.DoubleSide,transparent:true,opacity:.72,depthTest:false});
+let supportActive=false, supportSignature='',supportLast=0;
+function clearSupportOverlay(){
+ for(const item of [...supportOverlay.children]){supportOverlay.remove(item);item.geometry.dispose()}
+}
+function supportSceneSignature(){
+ root.updateMatrixWorld(true);
+ const parts=[];
+ root.traverse(o=>{if(o.isMesh)parts.push(o.uuid+':'+o.matrixWorld.elements.map(n=>n.toFixed(2)).join(',')+':'+o.geometry.uuid)});
+ return parts.join('|');
+}
+function updateSupportOverlay(){
+ clearSupportOverlay();
+ const threshold=Number(document.getElementById('supportAngle').value);
+ if(!(threshold>=5&&threshold<=85))return;
+ const solids=[];root.traverse(o=>{if(o.isMesh&&o.visible)solids.push(o)});
+ const boxes=solids.map(o=>({o,b:new THREE.Box3().setFromObject(o)}));
+ const ray=new THREE.Raycaster(),down=new THREE.Vector3(0,-1,0),verts=[];
+ const tolerance=.3;
+ for(const mesh of solids){
+  const geom=mesh.geometry,positions=geom?.getAttribute('position');if(!positions)continue;
+  const indices=geom.index,total=indices?indices.count:positions.count;
+  const sampleEvery=Math.max(1,Math.ceil(total/3/8000));
+  for(let i=0;i+2<total;i+=3*sampleEvery){
+   const points=[i,i+1,i+2].map(k=>new THREE.Vector3().fromBufferAttribute(positions,indices?indices.getX(k):k).applyMatrix4(mesh.matrixWorld));
+   const [a,b,c]=points;
+   const normal=b.clone().sub(a).cross(c.clone().sub(a));
+   if(normal.lengthSq()<1e-10)continue;
+   normal.normalize();
+   if(normal.y>=-.0001)continue;
+   const angle=Math.acos(THREE.MathUtils.clamp(-normal.y,-1,1))*180/Math.PI;
+   if(angle>=threshold)continue;
+   const samples=[a.clone().add(b).add(c).multiplyScalar(1/3),
+     a.clone().multiplyScalar(.6).addScaledVector(b,.2).addScaledVector(c,.2),
+     b.clone().multiplyScalar(.6).addScaledVector(a,.2).addScaledVector(c,.2),
+     c.clone().multiplyScalar(.6).addScaledVector(a,.2).addScaledVector(b,.2)];
+   let supported=0;
+   for(const pt of samples){
+    if(pt.y<=tolerance){supported++;continue}
+    let contact=false;
+    for(const entry of boxes){
+     if(entry.o===mesh||entry.o.geometry?.type!=='BoxGeometry')continue;
+     const e=entry.o.rotation;if(Math.abs(e.x)+Math.abs(e.y)+Math.abs(e.z)>.001)continue;
+     const bb=entry.b;
+     if(pt.x>=bb.min.x-.05&&pt.x<=bb.max.x+.05&&pt.z>=bb.min.z-.05&&pt.z<=bb.max.z+.05&&
+       ((bb.max.y<=pt.y+.05&&pt.y-bb.max.y<=tolerance+.05)||(pt.y>=bb.min.y-.05&&pt.y<=bb.max.y+.05))){
+       contact=true;break;
+     }
+    }
+    if(!contact){
+     ray.set(pt.clone().addScaledVector(down,.07),down);ray.near=0;ray.far=pt.y+1;
+     for(const other of solids){
+      if(other===mesh)continue;
+      // Double-sided test without mutating original materials.
+      const previous=other.material,materials=Array.isArray(previous)?previous:[previous],sides=materials.map(m=>m.side);
+      try{
+       materials.forEach(m=>m.side=THREE.DoubleSide);
+       const hit=ray.intersectObject(other,true)[0];
+       if(hit&&hit.distance+.07<=tolerance+.1){contact=true;break}
+      }finally{materials.forEach((m,j)=>m.side=sides[j])}
+     }
+    }
+    if(contact)supported++;
+   }
+   if(supported<3)verts.push(...a.toArray(),...b.toArray(),...c.toArray());
+  }
+ }
+ if(verts.length){
+  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+  const highlight=new THREE.Mesh(geometry,supportMaterial);highlight.renderOrder=900;supportOverlay.add(highlight);
+ }
+ supportSignature=supportSceneSignature();
+}
+document.getElementById('analyzeSupport').addEventListener('click',()=>{supportActive=true;updateSupportOverlay()});
+document.getElementById('clearSupport').addEventListener('click',()=>{supportActive=false;clearSupportOverlay()});
+document.getElementById('supportAngle').addEventListener('change',()=>{if(supportActive)updateSupportOverlay()});
+function supportWatcher(now){
+ if(supportActive&&now-supportLast>550){
+  supportLast=now;
+  if(supportSceneSignature()!==supportSignature)updateSupportOverlay();
+ }
+ requestAnimationFrame(supportWatcher);
+}
+requestAnimationFrame(supportWatcher);

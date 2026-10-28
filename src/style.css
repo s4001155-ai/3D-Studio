@@ -138,3 +138,21 @@ header .top-editor summary,#settingsToggle,#shapeTiles .shape-tile,#toast{backgr
 #specialToolButtons .tool-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:10px 0}
 #specialToolButtons .tool-fields label{display:grid;gap:4px;font-size:12px}
 #specialToolButtons .tool-fields input{width:100%;box-sizing:border-box}
+
+/* Integrated, non-overlapping tool sections. Scroll rather than float over settings. */
+#integratedTools{display:grid;gap:9px;margin:12px 0 18px}
+.tool-category{border:1px solid #486584;border-radius:10px;padding:10px;background:#23364d}
+.tool-category>summary{font-weight:700;cursor:pointer;list-style:revert}
+.tool-count{font-size:11px;font-weight:400;color:#b5cce4}
+.tool-links{display:grid;gap:6px;margin:10px 0}
+.tool-links button{width:100%;text-align:left;white-space:normal}
+.tool-help{font-size:12px;color:#b6c9dd;line-height:1.4}
+#appearanceSettings{position:static;z-index:auto;margin-top:14px;border-top:1px solid #526780;padding-top:14px}
+#proToolDock[hidden]{display:none!important}
+#proToolDock{position:fixed;z-index:80;top:calc(var(--header-height,110px) + 8px);bottom:12px;left:calc(260px + 16px);right:calc(270px + 16px);background:#172a40;border:1px solid #6589b2;border-radius:12px;box-shadow:0 12px 35px #000b;padding:12px;display:flex;flex-direction:column;gap:8px}
+#proToolDock .dock-head{display:flex;justify-content:space-between;align-items:center}
+#proToolDock p{margin:0;color:#b9cfe6;font-size:12px}
+#proToolFrame{flex:1;border:0;border-radius:8px;background:#101827;width:100%;min-height:0}
+#toolGuideDialog{max-width:450px;border:1px solid #6b9cc6;border-radius:12px;background:#17283b;color:#eaf4ff;padding:22px}
+#toolGuideDialog::backdrop{background:#000a}
+@media(max-width:900px){#proToolDock{left:12px;right:12px;top:110px}}
