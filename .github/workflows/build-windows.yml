@@ -3,36 +3,40 @@ name: Build Windows EXE
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
 
 jobs:
   windows:
     runs-on: windows-latest
+
     permissions:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Download project
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
-"publish": null,
+
       - name: Install dependencies
         run: npm install
 
-      - name: Build installer and portable EXE
-       run: npm run dist:win
-      - name: Find EXE files
-        shell: pwsh
-        run: Get-ChildItem -Path . -Recurse -Filter *.exe | Select-Object FullName
+      - name: Build Windows EXE
+        run: npm run dist:win
 
-      - name: Upload EXE files
+      - name: Show generated files
+        shell: pwsh
+        run: |
+          Write-Host "Files in dist:"
+          Get-ChildItem -Path dist -Recurse |
+            Select-Object FullName, Length
+
+      - name: Upload Windows installers
         uses: actions/upload-artifact@v4
         with:
-          name: 3D-Studio-Windows-EXE
+          name: 3D-Studio-Windows-Installers
           path: dist/*.exe
           if-no-files-found: error
 
