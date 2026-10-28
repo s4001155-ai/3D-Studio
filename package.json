@@ -7,7 +7,8 @@
   "scripts": {
     "postinstall": "node copy-vendor.cjs",
     "start": "electron .",
-    "dist:win": "electron-builder --win --x64 --publish never"
+    "dist:win": "electron-builder --win --x64 --publish never",
+    "dist:mac": "electron-builder --mac dmg zip --publish never"
   },
   "dependencies": {
     "three": "0.161.0"
@@ -56,6 +57,17 @@
     },
     "portable": {
       "artifactName": "3D-Studio-Portable-${version}-${arch}.${ext}"
+    },
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "icon": "build/icon.png",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "3D-Studio-${version}-macOS-${arch}.${ext}",
+      "identity": null,
+      "hardenedRuntime": false
     }
   },
   "author": "3D Studio Contributors"
