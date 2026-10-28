@@ -1,8 +1,8 @@
 {
   "name": "3d-studio",
-  "version": "0.3.1-alpha",
+  "version": "0.4.0-alpha",
   "private": true,
-  "description": "3D Studio Windows desktop alpha with experimental Special and Pro Tools",
+  "description": "3D Studio alpha: integrated Quick Tools, Special Tools, interactive beginner guide and compact context menu",
   "main": "main.cjs",
   "scripts": {
     "postinstall": "node copy-vendor.cjs",
