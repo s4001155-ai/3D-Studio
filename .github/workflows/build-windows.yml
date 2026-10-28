@@ -7,8 +7,6 @@ on:
 jobs:
   windows:
     runs-on: windows-latest
-    permissions:
-      contents: read
 
     steps:
       - name: Download project
@@ -24,40 +22,37 @@ jobs:
 
       - name: Build Windows EXE
         shell: pwsh
-        run: |
-          npm run dist:win
-          if ($LASTEXITCODE -ne 0) {
-            throw "Electron build failed"
-          }
+        run: npm run dist:win
 
-      - name: Prepare EXE files
+      - name: Find and prepare installers
         shell: pwsh
         run: |
-          $files = @(Get-ChildItem -Path "dist" -Recurse -File -Filter "*.exe" |
+          Write-Host "Current directory:"
+          Get-Location
+
+          Write-Host "Searching for installers..."
+
+          $files = @(Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -File -Filter "*.exe" |
             Where-Object {
-              $_.FullName -notmatch "win-unpacked"
+              $_.FullName -match "dist" -and
+              $_.FullName -notmatch "win-unpacked" -and
+              $_.FullName -notmatch "node_modules"
             })
 
-          Write-Host "Found EXE files: $($files.Count)"
-          $files | ForEach-Object {
-            Write-Host $_.FullName
+          New-Item -ItemType Directory -Force -Path "$env:GITHUB_WORKSPACE\upload" | Out-Null
+
+          foreach ($file in $files) {
+            Write-Host "Found: $($file.FullName)"
+            Copy-Item -LiteralPath $file.FullName -Destination "$env:GITHUB_WORKSPACE\upload" -Force
           }
 
           if ($files.Count -eq 0) {
-            throw "No installer or portable EXE was generated."
+            throw "No installers found."
           }
 
-          New-Item -ItemType Directory -Force -Path "upload" | Out-Null
-
-          foreach ($file in $files) {
-            Copy-Item -LiteralPath $file.FullName -Destination "upload" -Force
-          }
-
-          Get-ChildItem "upload" -File
-
-      - name: Upload Windows installers
+      - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
           name: 3D-Studio-Windows-Installers
-          path: upload/*.exe
+          path: ${{ github.workspace }}/upload/*.exe
           if-no-files-found: error
