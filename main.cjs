@@ -6,27 +6,26 @@ const fs = require('fs');
 let backend, win, startupTimeout;
 let token = '';
 function gatewayPath(){
+  const binary=process.platform==='win32'?'studio-gateway.exe':'studio-gateway';
   const candidates=app.isPackaged
-    ? [path.join(process.resourcesPath,'studio-gateway.exe'),
-       path.join(process.resourcesPath,'app','dist','studio-gateway.exe')]
-    : [path.join(__dirname,'app','dist','studio-gateway.exe')];
+    ? [path.join(process.resourcesPath,binary),path.join(process.resourcesPath,'app','dist',binary)]
+    : [path.join(__dirname,'app','dist',binary)];
   return candidates.find(p=>fs.existsSync(p)) || candidates[0];
 }
 function createLoginWindow(){
-  const w = new BrowserWindow({width:500,height:340,resizable:false,autoHideMenuBar:true,webPreferences:{nodeIntegration:false,contextIsolation:true,preload:path.join(__dirname,'preload.cjs')}});
-  const page = `<!doctype html><html lang="ru"><meta charset="utf-8"><style>body{font:15px system-ui;background:#172638;color:#eef6ff;padding:24px}input{width:100%;box-sizing:border-box;padding:10px;margin:12px 0;background:#263e59;border:1px solid #6682a2;border-radius:6px;color:white}button{padding:11px;background:#3973b5;color:white;border:0;border-radius:7px;cursor:pointer}</style><h2>3D Studio — тестовая версия</h2><p>Thingiverse App Token нужен только для онлайн-поиска. Токен не сохраняется и не включён в EXE.</p><input id="token" type="password" placeholder="Thingiverse App Token (необязательно)"><button id="start">Открыть 3D Studio</button><script>document.getElementById('start').onclick=()=>{window.studio.start(document.getElementById('token').value);document.getElementById('start').disabled=true};</script></html>`;
-  w.loadURL('data:text/html;charset=utf-8,'+encodeURIComponent(page));
-  return w;
+  const w=new BrowserWindow({width:560,height:300,resizable:false,autoHideMenuBar:true,webPreferences:{nodeIntegration:false,contextIsolation:true,preload:path.join(__dirname,'preload.cjs')}});
+  const page=`<!doctype html><html lang="ru"><meta charset="utf-8"><style>body{font:15px system-ui;background:#172638;color:#eef6ff;padding:24px}button{padding:12px 18px;background:#3973b5;color:white;border:0;border-radius:7px;cursor:pointer}</style><h2>3D Studio — Public Beta 0.5.3</h2><p>Моделирование работает без интернета. Онлайн-поиск подключается через Cloudflare. Вводить токен Thingiverse не нужно.</p><button id="start">Открыть 3D Studio</button><script>document.getElementById('start').onclick=()=>{window.studio.start('');document.getElementById('start').disabled=true};</script></html>`;
+  w.loadURL('data:text/html;charset=utf-8,'+encodeURIComponent(page));return w;
 }
 function launchGateway(value){
   if(backend)return;
   token = typeof value === 'string' ? value.trim() : '';
   const exe=gatewayPath();
   if(!fs.existsSync(exe)){
-    dialog.showErrorBox('Не найден сервер','Отсутствует studio-gateway.exe в папке ресурсов. Этот установщик собран неправильно. Установите новую сборку 5.3.1 RC.');
+    dialog.showErrorBox('Не найден сервер','Локальный сервер отсутствует в ресурсах. Проверьте сборку GitHub Actions.');
     app.quit();return;
   }
-  const env={...process.env,THINGIVERSE_TOKEN:token,STUDIO_WEB_ROOT:app.isPackaged?path.join(process.resourcesPath,'web'):path.join(__dirname,'app')};
+  const env={...process.env,STUDIO_CLOUD_API:'https://3d-studio-api.s4001155.workers.dev',STUDIO_WEB_ROOT:app.isPackaged?path.join(process.resourcesPath,'web'):path.join(__dirname,'app')};
   backend=spawn(exe,['--port','0'],{cwd:app.isPackaged?path.join(process.resourcesPath,'web'):path.join(__dirname,'app'),env,windowsHide:true,stdio:['ignore','pipe','pipe']});
   token='';
   let log='';let ready=false;

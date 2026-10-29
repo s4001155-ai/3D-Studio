@@ -1,14 +1,14 @@
-
 {
   "name": "3d-studio-windows-rc",
-  "version": "5.3.1-rc.1",
+  "version": "0.5.3-beta.1",
   "private": true,
-  "description": "3D Studio experimental Windows desktop build",
+  "description": "3D Studio Windows/macOS cloud-search public beta source",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
+    "dist:win": "npm run verify:gateway && electron-builder --win nsis --x64 --publish never",
     "verify:gateway": "node scripts/verify-gateway.cjs",
-    "dist:win": "npm run verify:gateway && electron-builder --win nsis --x64 --publish never"
+    "dist:mac": "npm run verify:gateway && electron-builder --mac dmg zip --publish never"
   },
   "devDependencies": {
     "electron": "^33.4.11",
@@ -26,16 +26,6 @@
       "app/index.html",
       "preload.cjs"
     ],
-    "extraResources": [
-      {
-        "from": "app/dist/studio-gateway.exe",
-        "to": "studio-gateway.exe"
-      },
-      {
-        "from": "app/index.html",
-        "to": "web/index.html"
-      }
-    ],
     "win": {
       "target": [
         {
@@ -43,6 +33,16 @@
           "arch": [
             "x64"
           ]
+        }
+      ],
+      "extraResources": [
+        {
+          "from": "app/dist/studio-gateway.exe",
+          "to": "studio-gateway.exe"
+        },
+        {
+          "from": "app/index.html",
+          "to": "web/index.html"
         }
       ]
     },
@@ -52,6 +52,24 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "3D Studio"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.graphics-design",
+      "hardenedRuntime": false,
+      "extraResources": [
+        {
+          "from": "app/dist/studio-gateway",
+          "to": "studio-gateway"
+        },
+        {
+          "from": "app/index.html",
+          "to": "web/index.html"
+        }
+      ]
     }
   }
 }

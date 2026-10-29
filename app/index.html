@@ -2937,13 +2937,13 @@ const searchLocalModels=[
 
 // Search 5.0: provider-specific public search; downloads only where authenticated and permitted.
 const v5host=document.getElementById('scV3Search');
-v5host.innerHTML=`<strong>🔎 Smart Model Search 5.3</strong>
+v5host.innerHTML=`<strong>🔎 Smart Model Search — Cloud Beta</strong>
 <label for="v5q">Что хотите найти? / Search query</label><textarea id="v5q" rows="2" placeholder="I want a detailed car"></textarea>
 <label for="v5source">Каталог / Provider</label><select id="v5source"><option value="sketchfab">Sketchfab</option><option value="thingiverse">Thingiverse</option></select>
 <button id="v5find" type="button">🔎 Найти модели / Find models</button>
 <div id="v5state" role="status"></div><div id="v5cards"></div>
 <button id="v5more" type="button" hidden>Другие модели / More</button>
-<small>Только реальные результаты каталога. Скачивание Sketchfab требует входа через OAuth; Thingiverse — API-доступа. Это тестовая интеграция, не подтверждённая на реальных аккаунтах.</small>`;
+<small>Только реальные результаты каталога. Скачивание Sketchfab требует входа через OAuth; Thingiverse — через Cloudflare API. Импорт STL требует Worker 1.5.</small>`;
 const v5=id=>document.getElementById(id);
 let v5offset=0,v5query='',v5provider='',v5busy=false,v5seq=0;
 function v5status(s){v5('v5state').textContent=s}
@@ -3004,7 +3004,7 @@ async function v5search(more=false){
  if(v5busy)return;
  const query=v5('v5q').value.trim(),provider=v5('v5source').value;
  if(!query){v5status('Введите название модели');return}
- if(query.length>160){v5status('Запрос слишком длинный');return}
+ if(query.length>80){v5status('Запрос слишком длинный');return}
  if(!more||query!==v5query||provider!==v5provider){v5offset=0;v5('v5cards').replaceChildren()}
  v5query=query;v5provider=provider;v5busy=true;v5('v5find').disabled=true;v5('v5more').hidden=true;
  const seq=++v5seq;v5status('Ищем в '+provider+'…');

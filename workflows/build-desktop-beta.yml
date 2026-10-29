@@ -1,0 +1,60 @@
+name: Build 3D Studio 0.5.3 Beta Windows and macOS
+on:
+  workflow_dispatch:
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+          - os: macos-15-intel
+            platform: macos-intel
+          - os: macos-15-arm
+            platform: macos-arm
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build bundled local server
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip pyinstaller
+          python -m PyInstaller --clean --noconfirm --onefile --name studio-gateway --distpath app/dist app/serve.py
+      - name: Check gateway
+        run: node scripts/verify-gateway.cjs
+      - name: Install desktop dependencies
+        run: npm install
+      - name: Build installer
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            npm run dist:win
+          else
+            npm run dist:mac
+          fi
+      - name: Verify packaged server
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            test -s dist/win-unpacked/resources/studio-gateway.exe
+          else
+            find dist -path '*/Contents/Resources/studio-gateway' -type f -size +100k | grep -q .
+          fi
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3D-Studio-0.5.3-Beta-${{ matrix.platform }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error
