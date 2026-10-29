@@ -240,7 +240,7 @@ def main():
     # Desktop gateway receives an optional token via its parent process.
     # Never prompt in the packaged GUI application.
     server=ThreadingHTTPServer(('127.0.0.1',args.port),Handler)
-    print(f'3D Studio Search 5.3: http://127.0.0.1:{args.port}/',flush=True)
+    print(f'3D Studio Search 5.3: http://127.0.0.1:{server.server_port}/',flush=True)
     print('Thingiverse search enabled if a token was entered. Thingiverse STL import is experimental; check model geometry and units before printing.',flush=True)
     try:server.serve_forever()
     except KeyboardInterrupt:pass
