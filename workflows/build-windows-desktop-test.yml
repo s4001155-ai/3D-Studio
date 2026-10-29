@@ -1,4 +1,4 @@
-name: Build 3D Studio Windows Desktop Import Test 5.3.3
+name: Build 3D Studio Windows Public Beta 5.4.2
 on:
   workflow_dispatch:
 jobs:
@@ -21,6 +21,8 @@ jobs:
           python -m PyInstaller --clean --noconfirm --onefile --name studio-gateway --distpath app/dist app/serve.py
       - name: Verify local gateway
         run: node scripts/verify-gateway.cjs
+      - name: Check multi-part import routes
+        run: node scripts/test-multipart.cjs
       - name: Install Electron
         run: npm install
       - name: Package Windows installer
@@ -32,6 +34,6 @@ jobs:
           if (!(Test-Path "dist/win-unpacked/resources/web/index.html")) { throw "Editor not packaged" }
       - uses: actions/upload-artifact@v4
         with:
-          name: 3D-Studio-Windows-5.3.3-Desktop-Test
+          name: 3D-Studio-Windows-5.4.2-Desktop-Test
           path: dist/*.exe
           if-no-files-found: error

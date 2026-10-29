@@ -184,6 +184,17 @@ class Handler(SimpleHTTPRequestHandler):
                 offset=int(params.get('offset',['0'])[0]);
                 if not q or not 0<=offset<=480 or provider not in {'sketchfab','thingiverse'}:return self.json({'error':'Invalid search parameters'},400)
                 return self.json(sketchfab_search(q,offset) if provider=='sketchfab' else thingiverse_search(q,offset))
+            if u.path.startswith('/studio-v5/parts/thingiverse/'):
+                mid=u.path.rsplit('/',1)[-1]
+                if not mid.isdigit():return self.json({'error':'Invalid model identifier'},400)
+                raw=cloud_request('/files?'+urllib.parse.urlencode({'id':mid}),limit=MAX_JSON)
+                return self.json(safe_json(raw))
+            if u.path.startswith('/studio-v5/part/thingiverse/'):
+                mid=u.path.rsplit('/',1)[-1];fid=params.get('file',[''])[0]
+                if not mid.isdigit() or not fid.isdigit():return self.json({'error':'Invalid file identifier'},400)
+                raw=cloud_request('/part?'+urllib.parse.urlencode({'id':mid,'file':fid}),limit=MAX_DOWNLOAD)
+                self.send_response(200);self.send_header('Content-Type','model/stl')
+                self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw);return
             if u.path.startswith('/studio-v5/download/'):
                 _,_,_,provider,mid=u.path.split('/',4)
                 if provider=='sketchfab' and re.fullmatch('[A-Za-z0-9]{12,64}',mid):

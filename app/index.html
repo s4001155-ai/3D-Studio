@@ -2967,11 +2967,66 @@ function v5addObject(object,model){
  flat.userData.importScale='Longest dimension normalized to 100mm: source units unknown';
  saveUndo();root.add(flat);select(flat);refresh();checkBounds();updateEstimate();
 }
+// 5.4.1: multipart STL import. Each selected STL becomes an independent root object.
+// STL files from one Thingiverse thing share one coordinate system. No per-part normalization.
+async function v541ImportParts(model){
+ const r=await fetch('/studio-v5/parts/thingiverse/'+encodeURIComponent(model.id));
+ const manifest=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error(manifest.error||'Unable to list STL parts');
+ const files=Array.isArray(manifest.files)?manifest.files:[];
+ if(!files.length)throw Error('No STL parts available');
+ const selected=await new Promise(resolve=>{
+  const overlay=document.createElement('div');overlay.style.cssText='position:fixed;inset:0;background:#000b;z-index:999999;display:grid;place-items:center';
+  const panel=document.createElement('div');panel.style.cssText='background:#20344b;color:white;border:1px solid #6c90b0;border-radius:12px;padding:20px;max-width:550px;width:90vw;max-height:80vh;overflow:auto;font:14px system-ui';
+  const heading=document.createElement('h3');heading.textContent='Import STL parts — '+model.title;panel.append(heading);
+  const help=document.createElement('p');help.textContent='Select the parts to import. All parts retain their shared coordinates and scale (STL units assumed millimetres).';panel.append(help);
+  const inputs=[];
+  for(const f of files){const row=document.createElement('label');row.style.cssText='display:flex;gap:9px;align-items:center;padding:6px 0';const cb=document.createElement('input');cb.type='checkbox';cb.checked=true;inputs.push(cb);const name=document.createElement('span');name.textContent=f.name;row.append(cb,name);panel.append(row)}
+  const buttons=document.createElement('div');buttons.style.cssText='display:flex;gap:12px;margin-top:15px';
+  const ok=document.createElement('button');ok.textContent='Import selected';
+  const cancel=document.createElement('button');cancel.textContent='Cancel';
+  const finish=v=>{overlay.remove();resolve(v)};
+  ok.onclick=()=>finish(files.filter((_,i)=>inputs[i].checked));cancel.onclick=()=>finish(null);
+  buttons.append(ok,cancel);panel.append(buttons);overlay.append(panel);document.body.append(overlay);
+ });
+ if(selected===null)return;
+ if(!selected.length)throw Error('No parts selected');
+ // Download and validate every part before mutating the scene (atomic import).
+ const imported=[];
+ for(const file of selected){
+  v5status('Downloading '+file.name+' ('+(imported.length+1)+'/'+selected.length+')…');
+  const response=await fetch('/studio-v5/part/thingiverse/'+encodeURIComponent(model.id)+'?file='+encodeURIComponent(file.id));
+  if(!response.ok){const detail=await response.json().catch(()=>({}));throw Error(file.name+': '+(detail.error||'HTTP '+response.status))}
+  const bytes=await response.arrayBuffer();
+  if(bytes.byteLength>45*1024*1024)throw Error(file.name+': exceeds 45 MB');
+  const geometry=new STLLoader().parse(bytes);
+  geometry.computeBoundingBox();
+  if(!geometry.boundingBox||geometry.boundingBox.isEmpty())throw Error(file.name+': empty geometry');
+  const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:0x69b9ec,roughness:.7,side:THREE.DoubleSide}));
+  mesh.name=file.name;mesh.userData.sourceURL=model.url;mesh.userData.source='thingiverse';
+  mesh.userData.modelId=String(model.id);mesh.userData.fileId=String(file.id);
+  mesh.userData.license=model.license;mesh.userData.author=model.author;
+  mesh.userData.importScale='Original STL coordinates; assumed mm; verify dimensions';
+  imported.push(mesh);
+ }
+ // Translate all selected parts by exactly the same vector; no individual centering.
+ const bounds=new THREE.Box3();imported.forEach(mesh=>bounds.expandByObject(mesh));
+ const centre=bounds.getCenter(new THREE.Vector3());
+ const offset=new THREE.Vector3(-centre.x,-bounds.min.y,-centre.z);
+ saveUndo();
+ for(const mesh of imported){mesh.position.copy(offset);root.add(mesh)}
+ select(imported[0]);refresh();checkBounds();updateEstimate();
+ v5status('Imported '+imported.length+' separate STL objects. Shared scale and relative positions preserved; verify source units and printability.');
+}
 async function v5import(model,button){
  if(!model.importable){v5status('Для загрузки нужен вход в аккаунт каталога. В тестовой сборке авторизация не настроена.');return}
  button.disabled=true;v5status('Запрашиваем разрешённый файл у каталога…');
  const urls=[];
  try{
+  if(model.provider==='thingiverse'){
+   await v541ImportParts(model);
+   return;
+  }
   const r=await fetch('/studio-v5/download/'+encodeURIComponent(model.provider)+'/'+encodeURIComponent(model.id));
   if(!r.ok){const msg=await r.json().catch(()=>({}));throw Error(msg.error||'Download HTTP '+r.status)}
   const bytes=await r.arrayBuffer();if(bytes.byteLength>45*1024*1024)throw Error('Archive too large');
@@ -2991,12 +3046,8 @@ async function v5import(model,button){
    const text=new TextDecoder().decode(files[main]);
    const loaded=await new GLTFLoader(manager).parseAsync(text,'');
    v5addObject(loaded.scene,model);
-  }else if(model.provider==='thingiverse'){
-   const geometry=new STLLoader().parse(bytes);
-   const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:0x69b9ec,roughness:.7,side:THREE.DoubleSide}));
-   v5addObject(mesh,model);
   }else throw Error('Неизвестный формат модели');
-  v5status('Модель добавлена. Масштаб условный (100 мм). Проверь размеры, лицензию и печатаемость.');
+  if(model.provider!=='thingiverse')v5status('Model added. Verify dimensions, license and printability.');
  }catch(e){console.error(e);v5status('Не удалось импортировать: '+e.message)}
  finally{urls.forEach(u=>URL.revokeObjectURL(u));button.disabled=false}
 }

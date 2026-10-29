@@ -30,8 +30,8 @@ function isStl(buffer){
 export default {async fetch(request,env){
  const url=new URL(request.url);
  if(request.method!=='GET')return respond({error:'Method not allowed'},405);
- if(url.pathname==='/health')return respond({app:'3D Studio API',version:'1.5-beta',status:'online',thingiverseConfigured:!!env.THINGIVERSE_TOKEN,rateLimiterConfigured:!!env.SEARCH_LIMITER});
- if(!['/search','/download'].includes(url.pathname))return respond({error:'Not found'},404);
+ if(url.pathname==='/health')return respond({app:'3D Studio API',version:'1.7-multipart-import-fix',status:'online',thingiverseConfigured:!!env.THINGIVERSE_TOKEN,rateLimiterConfigured:!!env.SEARCH_LIMITER});
+ if(!['/search','/download','/files','/part'].includes(url.pathname))return respond({error:'Not found'},404);
  if(!env.THINGIVERSE_TOKEN||!env.SEARCH_LIMITER)return respond({error:'Server configuration incomplete'},503);
  const ip=request.headers.get('CF-Connecting-IP')||'unknown';
  try{const decision=await env.SEARCH_LIMITER.limit({key:url.pathname+':'+ip});if(!decision.success)return respond({error:'Rate limit exceeded'},429)}catch{return respond({error:'Rate limiter unavailable'},503)}
@@ -50,8 +50,22 @@ export default {async fetch(request,env){
   const filesObj=await provider(API+'/things/'+id+'/files',env.THINGIVERSE_TOKEN);
   const files=Array.isArray(filesObj)?filesObj:(filesObj?.files||filesObj?.data||[]);
   if(!Array.isArray(files))return respond({error:'Unexpected file list'},502);
-  const candidates=files.filter(f=>f&&validId(String(f.id||''))&&typeof f.name==='string'&&f.name.toLowerCase().endsWith('.stl')).slice(0,8);
+  const candidates=files.filter(f=>f&&validId(String(f.id||''))&&typeof f.name==='string'&&f.name.toLowerCase().endsWith('.stl')).slice(0,40);
   if(!candidates.length)return respond({error:'No STL files available for this model'},404);
+  if(url.pathname==='/files')return respond({modelId:id,files:candidates.map(f=>({id:String(f.id),name:f.name,size:Number(f.size)||null}))});
+  if(url.pathname==='/part'){
+   const fileId=url.searchParams.get('file')||'';
+   const f=candidates.find(f=>String(f.id)===fileId);
+   if(!f)return respond({error:'STL file not found in this model'},404);
+   let download=API+'/files/'+f.id+'/download';
+   if(typeof f.download_url==='string'){
+    const u=new URL(f.download_url);
+    if(u.protocol==='https:'&&acceptedHost(u.hostname))download=u.toString();
+   }
+   const bytes=await provider(download,env.THINGIVERSE_TOKEN,'binary');
+   if(!isStl(bytes))return respond({error:'Downloaded content is not STL'},502);
+   return new Response(bytes,{headers:{'content-type':'model/stl','cache-control':'no-store','x-content-type-options':'nosniff'}});
+  }
   let last='No downloadable STL';
   for(const f of candidates){
    try{
