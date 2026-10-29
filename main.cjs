@@ -13,22 +13,13 @@ function gatewayPath(){
  return paths.find(fs.existsSync)||paths[0];
 }
 function welcome(){
- const html=`<!doctype html><html lang="ru"><meta charset="utf-8"><style>
- body{font:15px system-ui;background:#172638;color:#eff6ff;margin:0;padding:28px}
- input{display:block;box-sizing:border-box;width:100%;padding:12px;margin:16px 0;background:#263e59;color:white;border:1px solid #6484a2;border-radius:7px}
- button{background:#3678bd;color:white;border:0;padding:12px 18px;border-radius:7px;cursor:pointer}
+ const html=`<!doctype html><html lang="en"><meta charset="utf-8"><title>3D Studio</title><style>
+ body{font:16px system-ui;background:#172638;color:#eff6ff;margin:0;padding:30px}
+ button{background:#3678bd;color:white;border:0;padding:13px 20px;border-radius:7px;cursor:pointer}
  p{line-height:1.5;color:#d5e4f5}</style>
- <h2>3D Studio — Windows Desktop Test 5.3.3</h2>
- <p>Для онлайн-поиска Thingiverse введите свой тестовый App Token.
- Для работы с локальными моделями оставьте поле пустым.</p>
- <input type="password" id="token" placeholder="Thingiverse App Token (необязательно)" autocomplete="off">
- <button id="start">Открыть 3D Studio</button>
- <p>Токен не записывается в файл. Не распространяйте сборку с личным токеном.</p>
- <script>document.getElementById('start').onclick=()=>{
- const b=document.getElementById('start');b.disabled=true;
- window.studio.start(document.getElementById('token').value);
- document.getElementById('token').value='';
- }</script></html>`;
+ <h2>3D Studio — Public Beta</h2><p>Online search uses our cloud API. No API key is required.</p>
+ <button id="start">Launch 3D Studio</button><p>Offline modeling works without internet. Online model downloads depend on Thingiverse availability.</p>
+ <script>document.getElementById('start').onclick=()=>{document.getElementById('start').disabled=true;window.studio.start();}</script></html>`;
  win.loadURL('data:text/html;charset=utf-8,'+encodeURIComponent(html));
 }
 function showFailure(message){
@@ -64,8 +55,8 @@ function start(value){
  if(!fs.existsSync(exe)){showFailure('studio-gateway.exe отсутствует в ресурсах установщика');return;}
  const web=app.isPackaged?path.join(process.resourcesPath,'web'):path.join(__dirname,'app');
  if(!fs.existsSync(path.join(web,'index.html'))){showFailure('index.html отсутствует в ресурсах установщика');return;}
- const token=typeof value==='string'?value.trim():'';
- const env={...process.env,STUDIO_WEB_ROOT:web,THINGIVERSE_TOKEN:token};
+ const env={...process.env,STUDIO_WEB_ROOT:web};
+ delete env.THINGIVERSE_TOKEN;
  backend=spawn(exe,['--port','0'],{cwd:web,env,windowsHide:true,stdio:['ignore','pipe','pipe']});
  let log='';
  backend.stdout.on('data',chunk=>{

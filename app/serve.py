@@ -8,6 +8,7 @@ MAX_JSON=4*1024*1024
 MAX_DOWNLOAD=45*1024*1024
 SKETCHFAB='https://api.sketchfab.com'
 THINGIVERSE='https://api.thingiverse.com'
+CLOUD_API='https://3d-studio-api.s4001155.workers.dev'
 
 def request(url, token=None, limit=MAX_JSON, allowed_hosts=None):
     parts=urllib.parse.urlsplit(url)
@@ -64,29 +65,24 @@ def relevant(title, query):
         return False
     return True
 
+def cloud_request(path,limit=MAX_JSON):
+    return request(CLOUD_API+path,limit=limit,allowed_hosts={'3d-studio-api.s4001155.workers.dev'})
+
 def thingiverse_search(q,offset):
-    token=os.environ.get('THINGIVERSE_TOKEN','')
-    if not token:return {'results':[],'error':'Thingiverse API token is not configured','requires_auth':True}
-    # Thingiverse search uses a path parameter, not /search/?q=... .
-    args=urllib.parse.urlencode({'type':'things','page':offset//20+1,'per_page':20})
-    url=THINGIVERSE+'/search/'+urllib.parse.quote(q,safe='')+'?'+args
-    obj=safe_json(request(url,token=token,allowed_hosts={'api.thingiverse.com'}))
-    raw=obj if isinstance(obj,list) else obj.get('hits',obj.get('results',obj.get('data',[])))
-    if not isinstance(raw,list):raw=[]
+    args=urllib.parse.urlencode({'q':q[:80],'page':offset//20+1})
+    obj=safe_json(cloud_request('/search?'+args))
+    raw=obj.get('models',[]) if isinstance(obj,dict) else []
     results=[]
     for m in raw:
         if not isinstance(m,dict):continue
-        mid=str(m.get('id',''));title=str(m.get('name') or m.get('title') or '')[:150]
+        mid=str(m.get('id',''));title=str(m.get('name',''))[:150]
         if not mid.isdigit() or not relevant(title,q):continue
-        thumb=m.get('thumbnail') or m.get('preview_image') or m.get('thumbnail_url') or m.get('public_url')
-        if isinstance(thumb,dict):thumb=thumb.get('url') or thumb.get('sizes',{}).get('medium')
-        if isinstance(thumb,str) and thumb.startswith('http://'):thumb='https://'+thumb[7:]
+        thumb=m.get('thumbnail')
         if not isinstance(thumb,str) or not thumb.startswith('https://'):thumb=None
-        creator=m.get('creator') or {};creator=creator if isinstance(creator,dict) else {}
-        results.append({'id':mid,'title':title,'thumbnail':'/studio-v5/thumbnail/thingiverse/'+mid,'author':str(creator.get('name') or creator.get('screen_name') or '')[:100], 'license':str(m.get('license') or 'Check source'),'url':'https://www.thingiverse.com/thing:'+mid,'provider':'thingiverse','importable':True})
+        results.append({'id':mid,'title':title,'thumbnail':thumb,'author':str(m.get('creator',''))[:100], 'license':str(m.get('license') or 'Check source'),'url':'https://www.thingiverse.com/thing:'+mid,'provider':'thingiverse','importable':True})
         if len(results)>=6:break
-    # A following page can be requested; empty filtered pages are not padded.
     return {'results':results,'next_offset':offset+20 if len(raw)>=20 else None,'download_ready':True}
+
 
 def get_thingiverse_thumbnail(mid,token):
     obj=safe_json(request(THINGIVERSE+'/things/'+mid+'/images',token=token,allowed_hosts={'api.thingiverse.com'}))
@@ -182,20 +178,12 @@ class Handler(SimpleHTTPRequestHandler):
         if origin and origin not in {'http://'+h for h in allowed}:return self.send_error(403)
         u=urllib.parse.urlsplit(self.path);params=urllib.parse.parse_qs(u.query)
         try:
-            if u.path=='/studio-v5/status':return self.json({'thingiverse':bool(os.environ.get('THINGIVERSE_TOKEN')),'sketchfab':bool(os.environ.get('SKETCHFAB_ACCESS_TOKEN'))})
+            if u.path=='/studio-v5/status':return self.json({'thingiverse':True,'sketchfab':bool(os.environ.get('SKETCHFAB_ACCESS_TOKEN')),'cloud':True})
             if u.path=='/studio-v5/search':
                 provider=params.get('provider',[''])[0];q=params.get('q',[''])[0].strip()[:160]
                 offset=int(params.get('offset',['0'])[0]);
                 if not q or not 0<=offset<=480 or provider not in {'sketchfab','thingiverse'}:return self.json({'error':'Invalid search parameters'},400)
                 return self.json(sketchfab_search(q,offset) if provider=='sketchfab' else thingiverse_search(q,offset))
-            if u.path.startswith('/studio-v5/thumbnail/thingiverse/'):
-                mid=u.path.rsplit('/',1)[-1]
-                if not mid.isdigit():return self.send_error(400)
-                token=os.environ.get('THINGIVERSE_TOKEN')
-                if not token:return self.send_error(401)
-                try:data,mime=get_thingiverse_thumbnail(mid,token)
-                except Exception:return self.send_error(404)
-                self.send_response(200);self.send_header('Content-Type',mime);self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data);return
             if u.path.startswith('/studio-v5/download/'):
                 _,_,_,provider,mid=u.path.split('/',4)
                 if provider=='sketchfab' and re.fullmatch('[A-Za-z0-9]{12,64}',mid):
@@ -214,13 +202,10 @@ class Handler(SimpleHTTPRequestHandler):
                         return self.json({'error':'Provider did not return a ZIP archive'},502)
                     self.send_response(200);self.send_header('Content-Type','application/zip');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw);return
                 if provider=='thingiverse' and mid.isdigit():
-                    token=os.environ.get('THINGIVERSE_TOKEN')
-                    if not token:return self.json({'error':'Thingiverse API token required'},401)
-                    raw=get_thingiverse_stl(mid,token)
+                    raw=cloud_request('/download?'+urllib.parse.urlencode({'id':mid}),limit=MAX_DOWNLOAD)
                     self.send_response(200)
                     self.send_header('Content-Type','model/stl')
                     self.send_header('Content-Length',str(len(raw)))
-                    self.send_header('X-Content-Type-Options','nosniff')
                     self.end_headers();self.wfile.write(raw);return
                 return self.json({'error':'Invalid model identifier'},400)
             if u.path.startswith('/studio-v5/'):return self.json({'error':'Unknown API route'},404)
@@ -241,7 +226,7 @@ def main():
     # Never prompt in the packaged GUI application.
     server=ThreadingHTTPServer(('127.0.0.1',args.port),Handler)
     print(f'3D Studio Search 5.3: http://127.0.0.1:{server.server_port}/',flush=True)
-    print('Thingiverse search enabled if a token was entered. Thingiverse STL import is experimental; check model geometry and units before printing.',flush=True)
+    print('Thingiverse cloud API enabled; STL import is experimental and must be verified.',flush=True)
     try:server.serve_forever()
     except KeyboardInterrupt:pass
     finally:server.server_close()

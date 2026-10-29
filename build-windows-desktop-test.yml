@@ -1,4 +1,4 @@
-name: Build 3D Studio Windows Desktop Import Test 5.3.2
+name: Build 3D Studio Windows Public Beta 5.4.0
 on:
   workflow_dispatch:
 jobs:
@@ -32,6 +32,6 @@ jobs:
           if (!(Test-Path "dist/win-unpacked/resources/web/index.html")) { throw "Editor not packaged" }
       - uses: actions/upload-artifact@v4
         with:
-          name: 3D-Studio-Windows-5.3.2-Desktop-Test
+          name: 3D-Studio-Windows-5.4.0-Desktop-Test
           path: dist/*.exe
           if-no-files-found: error

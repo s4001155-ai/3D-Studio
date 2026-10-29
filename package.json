@@ -1,6 +1,6 @@
 {
-  "name": "3d-studio-windows-test",
-  "version": "5.3.3-beta.1",
+  "name": "3d-studio-public-beta",
+  "version": "5.4.0-beta.1",
   "private": true,
   "description": "3D Studio Windows desktop experimental STL import test",
   "main": "main.cjs",
@@ -14,8 +14,8 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "com.studio3d.desktop.test",
-    "productName": "3D Studio Test",
+    "appId": "com.studio3d.desktop.beta",
+    "productName": "3D Studio",
     "directories": {
       "output": "dist"
     },
