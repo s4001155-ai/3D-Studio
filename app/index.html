@@ -2937,13 +2937,13 @@ const searchLocalModels=[
 
 // Search 5.0: provider-specific public search; downloads only where authenticated and permitted.
 const v5host=document.getElementById('scV3Search');
-v5host.innerHTML=`<strong>🔎 Smart Model Search — Cloud Beta</strong>
+v5host.innerHTML=`<strong>🔎 Smart Model Search 5.3</strong>
 <label for="v5q">Что хотите найти? / Search query</label><textarea id="v5q" rows="2" placeholder="I want a detailed car"></textarea>
 <label for="v5source">Каталог / Provider</label><select id="v5source"><option value="sketchfab">Sketchfab</option><option value="thingiverse">Thingiverse</option></select>
 <button id="v5find" type="button">🔎 Найти модели / Find models</button>
 <div id="v5state" role="status"></div><div id="v5cards"></div>
 <button id="v5more" type="button" hidden>Другие модели / More</button>
-<small>Только реальные результаты каталога. Скачивание Sketchfab требует входа через OAuth; Thingiverse — через Cloudflare API. Импорт STL требует Worker 1.5.</small>`;
+<small>Только реальные результаты каталога. Скачивание Sketchfab требует входа через OAuth; Thingiverse — API-доступа. Это тестовая интеграция, не подтверждённая на реальных аккаунтах.</small>`;
 const v5=id=>document.getElementById(id);
 let v5offset=0,v5query='',v5provider='',v5busy=false,v5seq=0;
 function v5status(s){v5('v5state').textContent=s}
@@ -3004,7 +3004,7 @@ async function v5search(more=false){
  if(v5busy)return;
  const query=v5('v5q').value.trim(),provider=v5('v5source').value;
  if(!query){v5status('Введите название модели');return}
- if(query.length>80){v5status('Запрос слишком длинный');return}
+ if(query.length>160){v5status('Запрос слишком длинный');return}
  if(!more||query!==v5query||provider!==v5provider){v5offset=0;v5('v5cards').replaceChildren()}
  v5query=query;v5provider=provider;v5busy=true;v5('v5find').disabled=true;v5('v5more').hidden=true;
  const seq=++v5seq;v5status('Ищем в '+provider+'…');
@@ -3508,6 +3508,36 @@ language.addEventListener('change',update);
 by('settingsLanguage')?.addEventListener('change',()=>queueMicrotask(update));
 window.addEventListener('keydown',e=>{if(e.key==='Escape'&&active)stop()});
 update();
+})();
+</script>
+
+<style id="studio-fullscreen-css">
+#studioFullscreenBtn{position:fixed;right:18px;top:12px;z-index:2147483000;background:#234766;color:#fff;border:1px solid #779dbb;border-radius:8px;padding:9px 13px;font:600 13px system-ui;cursor:pointer;box-shadow:0 2px 10px #0007}
+#studioFullscreenBtn:hover{background:#35668b}
+#studioFullscreenHint{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);z-index:2147483000;background:#172b40;color:white;border-radius:8px;padding:8px 12px;display:none;font:13px system-ui;max-width:85vw}
+</style>
+<button id="studioFullscreenBtn" type="button" title="Полный экран / Fullscreen (F10)">⛶ Полный экран</button>
+<div id="studioFullscreenHint" role="status"></div>
+<script>
+(function(){
+  const btn=document.getElementById('studioFullscreenBtn');
+  const hint=document.getElementById('studioFullscreenHint');
+  let hideTimer;
+  function notify(msg){hint.textContent=msg;hint.style.display='block';clearTimeout(hideTimer);hideTimer=setTimeout(()=>hint.style.display='none',4500)}
+  function update(){btn.textContent=document.fullscreenElement?'⛶ Выйти из полного экрана':'⛶ Полный экран'}
+  async function toggle(){
+    try{
+      if(document.fullscreenElement)await document.exitFullscreen();
+      else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();
+      else notify('Этот браузер не поддерживает полноэкранный режим. Попробуйте F11 в обычном окне браузера.');
+    }catch(e){notify('Браузер запретил полный экран: '+(e?.message||'попробуйте открыть страницу в обычной вкладке'))}
+  }
+  btn.addEventListener('click',toggle);
+  document.addEventListener('fullscreenchange',update);
+  document.addEventListener('keydown',e=>{
+    if(e.key==='F10'&&!e.repeat){e.preventDefault();toggle()}
+  });
+  update();
 })();
 </script>
 </body></html>

@@ -1,7 +1,6 @@
-'use strict';
 const fs=require('fs'),path=require('path');
-const p=path.join(__dirname,'..','app','dist',process.platform==='win32'?'studio-gateway.exe':'studio-gateway');
-if(!fs.existsSync(p)){console.error('FATAL: missing '+p);process.exit(1);}
-const b=fs.readFileSync(p);
-if(b.length<100000 || b.toString('ascii',0,2)!=='MZ'){console.error('FATAL: gateway is not a valid Windows executable');process.exit(1);}
-console.log('Gateway verified:',p,'size:',b.length);
+const p=path.resolve(__dirname,'../app/dist/studio-gateway.exe');
+if(!fs.existsSync(p)||fs.statSync(p).size<100000){console.error('Gateway missing or too small:',p);process.exit(1)}
+const fd=fs.openSync(p,'r');const b=Buffer.alloc(2);fs.readSync(fd,b,0,2,0);fs.closeSync(fd);
+if(b.toString()!=='MZ'){console.error('Invalid Windows executable');process.exit(1)}
+console.log('Gateway OK',p);
